@@ -1,0 +1,23 @@
+version: '3.9'
+services:
+  db:
+    container_name: mysql-db
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: always
+    env_file:
+      - .env
+    expose:
+      - "3306"
+    ports:
+      - ${MYSQL_PORT}:3306
+    volumes:
+      - ./scripts/schema.sql:/docker-entrypoint-initdb.d/1.sql
+      - ./scripts/data.sql:/docker-entrypoint-initdb.d/2.sql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+volumes:
+  mysql:
