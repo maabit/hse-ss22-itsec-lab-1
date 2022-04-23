@@ -17,16 +17,19 @@
     <div class="post">
         <% let post = posts[i]; %>
         <% const comment_postID = post.postID; %>
-        <span>
+        <span class="post-username">
             <%= post.username; %>
             </span>
-        <span>
+        <span class="post-content">
             <%= post.content; %>
             </span>
         <% let comments = post.comments %>
         <% for (let i = 0; i < comments.length; i++) { %>
             <% let comment = comments[i] %>
-            <span>
+            <span class="comment-username">
+                <%= comment.username %>
+            </span>
+            <span class="comment-content">
                 <%- comment.content; %>
                 </span>
         <% } %>
