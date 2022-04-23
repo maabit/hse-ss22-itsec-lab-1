@@ -1,8 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <title>Cool app bro 420 blaze it yeaaaaa</title>
 </head>
 <body>
+<header>
+    <% if (username != ""){ %>
+        <%- include("../partials/header.ejs", {user:`<span> Loggedin as: ${username}</span>`}) %>
+    <% }else{ %>
+        <%- include("../partials/header.ejs", {user:""}) %>
+    <% } %>
+
+</header>
+
 <% for (let i = 0; i < posts.length; i++) { %>
     <div class="post">
         <% let post = posts[i]; %>
@@ -11,7 +21,7 @@
             <%= post.username; %>
             </span>
         <span>
-            <%- post.content; %>
+            <%= post.content; %>
             </span>
         <% let comments = post.comments %>
         <% for (let i = 0; i < comments.length; i++) { %>
@@ -21,15 +31,21 @@
                 </span>
         <% } %>
         <div class="comment-form">
-            <form id="c-form" action="/comment/new" method="POST">
+            <form action="/comment/new" method="POST">
                 <input name="comment_postID" type="hidden" value="<%= `${comment_postID}` %>">
-                <input name="content" type="text" placeholder="What do you want to comment?">
+                <input name="content" type="text" placeholder="Add your comment">
                 <button type="submit">Submit</button>
             </form>
         </div>
     </div>
 <% } %>
+
+<div class="post-form">
+    <form action="/post/new" method="POST">
+        <input name="content" type="text" placeholder="Add your post">
+        <button type="submit">Submit</button>
+    </form>
 </div>
-</div>
+
 </body>
 </html>

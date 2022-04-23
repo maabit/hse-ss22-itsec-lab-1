@@ -4,6 +4,7 @@ import {fileURLToPath} from "url";
 import {config} from "dotenv";
 import path from "path";
 import mysql from "mysql";
+import {v4} from "uuid";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -21,6 +22,7 @@ let app = express();
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));
 app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({extended: false}));
 
 let connection = mysql.createPool({
     host: MYSQL_HOST, port: MYSQL_PORT, user: MYSQL_USER, password: MYSQL_PASSWORD, database: MYSQL_DATABSE
@@ -61,13 +63,33 @@ async function getCommentsByPostId(postId) {
     });
 }
 
+async function getPasswordByUsername(username) {
+    return new Promise((resolve, reject) => {
+        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =" + "'" + username + "'", [username], (err, rows, fields) => {
+            if (err) return reject(err);
+            resolve(rows);
+        });
+    });
+}
+
 app.get("/", async (req, res) => {
+    console.log("sessions", sessions);
+    let username = "";
+    if (req.cookies) {
+        const sessionToken = req.cookies["session_token"];
+        console.log("sessionToken", sessionToken);
+        const userSession = sessions[sessionToken];
+        console.log("userSession", userSession);
+        username = userSession.username;
+        console.log("username", username);
+    }
     await getPostsWithComments().then((posts) => {
-        res.render("pages/index", {posts: posts});
+        res.render("pages/index", {posts: posts, username: ""});
     });
 });
 
 app.get("/post", (req, res) => {
+
     connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", (err, rows, fields) => {
         if (err) throw err;
         // console.log("/posts...", rows);
@@ -76,8 +98,17 @@ app.get("/post", (req, res) => {
 });
 
 app.post("/post/new", (req, res) => {
+    if (req.cookies) {
+        const sessionToken = req.cookies["session_token"];
+        console.log("sessionToken", sessionToken);
+        const userSession = sessions[sessionToken];
+        console.log("userSession", userSession);
+        let username = userSession.username;
+        console.log("username", username);
+    }
     const content = req.body.content;
-    const username = req.body.username;
+    //username is saved in cookie
+    const username = "mattias";
     connection.query("INSERT INTO itseclab.post (content, post_userID)\n VALUES (?, (SELECT userID FROM user WHERE username LIKE ?));", [content, username], (err, rows, fields) => {
         if (err) throw err;
         res.send("New post created.");
@@ -101,10 +132,55 @@ app.post("/comment/new", (req, res) => {
     const username = "mattias";
     connection.query("INSERT INTO itseclab.comment(content, comment_userID, comment_postID) VALUES (?, (SELECT userID from user WHERE username = ?), ?);", [content, username, comment_postID], (err, rows, fields) => {
         if (err) throw err;
-        res.send("New comment created!");
+        res.send("root");
     });
 });
 
+// each session contains the username of the user and the time at which it expires
+class Session {
+    constructor(username, expiresAt) {
+        this.username = username;
+        this.expiresAt = expiresAt;
+    }
+
+    // we'll use this method later to determine if the session has expired
+    isExpired() {
+        this.expiresAt < (new Date());
+    }
+}
+
+// this object stores the users sessions. For larger scale applications, you can use a database or cache for this purpose
+const sessions = {};
+
+app.get("/login", (req, res) => {
+    // const username = req.body.username;
+    // const password = req.body.password;
+    const username = "mattias";
+    const password = "mattias";
+
+    if (!username) {
+        // If the username isn't present, return an HTTP unauthorized code
+        res.status(401).end();
+        return;
+    }
+    getPasswordByUsername(username).then((result) => {
+        let expectedPassword = JSON.parse(JSON.stringify(result))[0].password;
+        if (!expectedPassword || expectedPassword !== password) {
+            res.status(401).end();
+            return;
+        }
+        console.log("expectedPassword...", expectedPassword);
+        const sessionToken = v4();
+        console.log(sessionToken);
+        const now = new Date();
+        const expiresAt = new Date(+now * (60 * 60 * 24 * 7) * 1000);
+        const session = new Session(username, expiresAt);
+        sessions[sessionToken] = session;
+        console.log("sessions", sessions);
+        res.cookie("session_token", sessionToken, {expires: expiresAt});
+        res.end();
+    });
+});
 
 let server = app.listen(EXPRESS_PORT, EXPRESS_HOST, () => {
     console.log(`App listening on ${EXPRESS_HOST}:${EXPRESS_PORT}`);
