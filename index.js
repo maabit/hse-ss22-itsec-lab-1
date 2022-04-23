@@ -63,10 +63,8 @@ async function getCommentsByPostId(postId) {
 
 app.get("/", async (req, res) => {
     await getPostsWithComments().then((posts) => {
-        // console.log("getPostsWithComments", posts);
         res.render("pages/index", {posts: posts});
     });
-    // res.send();
 });
 
 app.get("/post", (req, res) => {
@@ -98,7 +96,7 @@ app.get("/comment", (req, res) => {
 app.post("/comment/new", (req, res) => {
     const comment_postID = req.body.comment_postID;
     const content = req.body.content;
-    console.log("req.body", req.body)
+    console.log("req.body", req.body);
     //username is saved in cookie
     const username = "mattias";
     connection.query("INSERT INTO itseclab.comment(content, comment_userID, comment_postID) VALUES (?, (SELECT userID from user WHERE username = ?), ?);", [content, username, comment_postID], (err, rows, fields) => {
