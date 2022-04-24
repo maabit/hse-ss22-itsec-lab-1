@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS `itseclab`.`post`
     CONSTRAINT `fk_post_user`
         FOREIGN KEY (`post_userID`)
             REFERENCES `itseclab`.`user` (`userID`)
-            ON DELETE NO ACTION
+            ON DELETE CASCADE
             ON UPDATE NO ACTION
 )
     ENGINE = InnoDB;
@@ -73,12 +73,12 @@ CREATE TABLE IF NOT EXISTS `itseclab`.`comment`
     CONSTRAINT `fk_comment_user1`
         FOREIGN KEY (`comment_userID`)
             REFERENCES `itseclab`.`user` (`userID`)
-            ON DELETE NO ACTION
+            ON DELETE CASCADE
             ON UPDATE NO ACTION,
     CONSTRAINT `fk_comment_post1`
         FOREIGN KEY (`comment_postID`)
             REFERENCES `itseclab`.`post` (`postID`)
-            ON DELETE NO ACTION
+            ON DELETE CASCADE
             ON UPDATE NO ACTION
 )
     ENGINE = InnoDB;

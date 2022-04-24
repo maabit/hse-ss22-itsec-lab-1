@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <title>simpleblog</title>
+</head>
+<body>
+<div class="user-registration">
+    <form action="/user/new" method="POST">
+        <input name="username" type="text" placeholder="username">
+        <input name="password" type="text" placeholder="password">
+        <button type="submit">Add</button>
+    </form>
+</div>
+<% for(let i = 0; i < users.length; i++){ %>
+    <div class="user">
+        <% let user = users[i]; %>
+
+        <span class="administration-id">
+            ID <%= user.userID; %>
+        </span>
+
+        <span class="administration-username">
+            Username <%= user.username; %>
+        </span>
+
+        <span class="administation-password">
+            Password <%= user.password; %>
+        </span>
+
+        <form action="/user/delete" method="DELETE">
+            <input name="userID" type="hidden" value="<%= `${user.userID}` %>">
+            <button type="submit">DELETE</button>
+        </form>
+    </div>
+<% } %>
+
+</body>
+</html>

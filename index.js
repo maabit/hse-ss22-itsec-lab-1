@@ -30,18 +30,44 @@ let connection = mysql.createPool({
     host: MYSQL_HOST, port: MYSQL_PORT, user: MYSQL_USER, password: MYSQL_PASSWORD, database: MYSQL_DATABSE
 });
 
-async function getPostsWithComments() {
-    return new Promise(async (resolve, reject) => {
-        connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", async (err, rows, fields) => {
+
+async function getUsers() {
+    return new Promise((resolve, reject) => {
+        let userArray = [];
+        connection.query("SELECT * FROM itseclab.user", (err, rows, fields) => {
+            if (err) return reject(err);
+            rows.forEach((element) => {
+                let user = element;
+                userArray.push(JSON.parse(JSON.stringify(user)));
+            });
+            resolve(userArray);
+        });
+    });
+}
+
+async function getPasswordByUsername(username) {
+    return new Promise((resolve, reject) => {
+        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =?", [username], (err, rows, fields) => {
+            if (err) return reject(err);
+            let password;
+            if (rows[0] != undefined) {
+                password = JSON.parse(JSON.stringify(rows[0])).password;
+            }
+            resolve(password);
+        });
+    });
+}
+
+
+async function getPosts() {
+    return new Promise((resolve, reject) => {
+        connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", (err, rows, fields) => {
             let postArray = [];
             if (err) return reject(err);
-            for (let i = 0; i < rows.length; i++) {
-                let post = JSON.parse(JSON.stringify(rows[i]));
-                await getCommentsByPostId(post.postID).then((result) => {
-                    post["comments"] = JSON.parse(JSON.stringify(result));
-                    postArray.push(post);
-                });
-            }
+            rows.forEach((element) => {
+                let post = JSON.parse(JSON.stringify(element));
+                postArray.push(post);
+            });
             resolve(postArray);
         });
     });
@@ -49,18 +75,29 @@ async function getPostsWithComments() {
 
 async function getCommentsByPostId(postId) {
     return new Promise((resolve, reject) => {
+        let commentsArray = [];
         connection.query("SELECT c.commentID, c.comment_userID, c.comment_postID, c.content, u.username FROM itseclab.comment AS c JOIN itseclab.user AS u ON c.comment_userID=u.userID WHERE c.comment_postID=?;", [postId], (err, rows, fields) => {
             if (err) return reject(err);
-            resolve(rows);
+            rows.forEach((element) => {
+                let comment = JSON.parse(JSON.stringify(element));
+                commentsArray.push(comment);
+            });
+            resolve(commentsArray);
         });
     });
 }
 
-async function getPasswordByUsername(username) {
-    return new Promise((resolve, reject) => {
-        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =" + "'" + username + "'", [username], (err, rows, fields) => {
-            if (err) return reject(err);
-            resolve(rows);
+async function createPostsWithComments() {
+    return new Promise(async (resolve, reject) => {
+        await getPosts().then(async (posts) => {
+            let postsWithCommentsArray = [];
+            for (const post of posts) {
+                await getCommentsByPostId(post.postID).then((comments) => {
+                    post["comments"] = comments;
+                    postsWithCommentsArray.push(post);
+                });
+            }
+            resolve(postsWithCommentsArray);
         });
     });
 }
@@ -74,46 +111,73 @@ app.get("/", async (req, res) => {
             username = userSession.username;
         }
     }
-    await getPostsWithComments().then((posts) => {
-        res.render("pages/index", {posts: posts, username: username});
+    await createPostsWithComments().then((postsWithComments) => {
+        res.render("pages/index", {posts: postsWithComments, username: username});
+        res.status(200).end();
     });
 });
 
-app.get("/post", (req, res) => {
-    connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", (err, rows, fields) => {
-        if (err) throw err;
-        // console.log("/posts...", rows);
-        res.send(rows);
+app.get("/administration", async (req, res) => {
+    await getUsers().then((users) => {
+        res.render("pages/administration", {users: users});
+        res.status(200).end();
+    });
+});
+
+
+app.post("/user/new", (req, res) => {
+    const username = req.body.username;
+    const password = req.body.password;
+
+    connection.query("INSERT INTO itseclab.user (username, password) VALUES (?, ?) " + "ON DUPLICATE KEY UPDATE password=" + "'" + password + "'", [username, password], (err, rows, fields) => {
+        if (err) {
+            res.redirect("/administration");
+            throw err;
+        }
+
+        res.redirect("/administration");
+        res.status(200).end();
+    });
+});
+
+app.get("/user/delete", (req, res) => {
+    const userId = req.query.userID;
+    connection.query("DELETE FROM itseclab.user WHERE userID=" + userId, (err, rows, fields) => {
+        if (err) {
+            res.redirect("/administration");
+            throw err;
+        }
+        res.redirect("/administration");
+        res.status(200).end();
     });
 });
 
 app.post("/post/new", (req, res) => {
 
     if (!req.cookies) {
+        res.redirect("/");
         res.status(401).end();
         return;
     }
 
-    // We can obtain the session token from the requests cookies, which come with every request
     const sessionToken = req.cookies["session_token"];
     if (!sessionToken) {
-        // If the cookie is not set, return an unauthorized status
+        res.redirect("/");
         res.status(401).end();
         return;
     }
 
-    // We then get the session of the user from our session map
-    // that we set in the signinHandler
     let userSession = sessions[sessionToken];
     if (!userSession) {
         // If the session token is not present in session map, return an unauthorized error
+        res.redirect("/");
         res.status(401).end();
         return;
     }
-    // if the session has expired, return an unauthorized error, and delete the
-    // session from our map
+
     if (userSession.isExpired()) {
         delete sessions[sessionToken];
+        res.redirect("/");
         res.status(401).end();
         return;
     }
@@ -127,41 +191,30 @@ app.post("/post/new", (req, res) => {
     });
 });
 
-app.get("/comment", (req, res) => {
-    const postID = req.query.postid;
-    connection.query("SELECT c.commentID, c.comment_userID, c.comment_postID, c.content, u.username FROM itseclab.comment AS c JOIN itseclab.user AS u ON c.comment_userID=u.userID WHERE c.comment_postID=?;", [postID], (err, rows, fields) => {
-        if (err) throw err;
-        // console.log("/posts...", rows);
-        res.send(rows);
-    });
-});
-
 app.post("/comment/new", (req, res) => {
     if (!req.cookies) {
+        res.redirect("/");
         res.status(401).end();
         return;
     }
 
-    // We can obtain the session token from the requests cookies, which come with every request
     const sessionToken = req.cookies["session_token"];
     if (!sessionToken) {
-        // If the cookie is not set, return an unauthorized status
+        res.redirect("/");
         res.status(401).end();
         return;
     }
 
-    // We then get the session of the user from our session map
-    // that we set in the signinHandler
     let userSession = sessions[sessionToken];
     if (!userSession) {
-        // If the session token is not present in session map, return an unauthorized error
+        res.redirect("/");
         res.status(401).end();
         return;
     }
-    // if the session has expired, return an unauthorized error, and delete the
-    // session from our map
+
     if (userSession.isExpired()) {
         delete sessions[sessionToken];
+        res.redirect("/");
         res.status(401).end();
         return;
     }
@@ -176,20 +229,17 @@ app.post("/comment/new", (req, res) => {
     });
 });
 
-// each session contains the username of the user and the time at which it expires
 class Session {
     constructor(username, expiresAt) {
         this.username = username;
         this.expiresAt = expiresAt;
     }
 
-    // we'll use this method later to determine if the session has expired
     isExpired() {
         this.expiresAt < (new Date());
     }
 }
 
-// this object stores the users sessions. For larger scale applications, you can use a database or cache for this purpose
 const sessions = {};
 
 app.post("/login", (req, res) => {
@@ -202,51 +252,35 @@ app.post("/login", (req, res) => {
         return;
     }
 
-    getPasswordByUsername(username).then((result) => {
-        let expectedPassword = JSON.parse(JSON.stringify(result))[0].password;
+    getPasswordByUsername(username).then((expectedPassword) => {
+        // let expectedPassword = password;
         if (!expectedPassword || expectedPassword !== password) {
+            res.redirect("/");
             res.status(401).end();
             return;
         }
-        console.log("expectedPassword...", expectedPassword);
         const sessionToken = v4();
-        console.log(sessionToken);
         const now = new Date();
         const expiresAt = new Date(+now + (60 * 60 * 24 * 7) * 1000);
         const session = new Session(username, expiresAt);
         sessions[sessionToken] = session;
-        console.log("sessions", sessions);
         res.cookie("session_token", sessionToken, {expires: expiresAt});
         res.redirect("/");
-        res.end();
+        res.status(200).end();
     });
 });
 
-function checkCookie(cookie) {
-    // We can obtain the session token from the requests cookies, which come with every request
-    const sessionToken = cookie["session_token"];
-    if (!sessionToken) {
-        // If the cookie is not set, return an unauthorized status
-        res.status(401).end();
-        return;
+app.post("/logout", (req, res) => {
+    if (req.cookies) {
+        const sessionToken = req.cookies["session_token"];
+        const userSession = sessions[sessionToken];
+        if (userSession != undefined) {
+            delete sessions[sessionToken];
+        }
     }
-
-    // We then get the session of the user from our session map
-    // that we set in the signinHandler
-    let userSession = sessions[sessionToken];
-    if (!userSession) {
-        // If the session token is not present in session map, return an unauthorized error
-        res.status(401).end();
-        return;
-    }
-    // if the session has expired, return an unauthorized error, and delete the
-    // session from our map
-    if (userSession.isExpired()) {
-        delete sessions[sessionToken];
-        res.status(401).end();
-        return;
-    }
-}
+    res.redirect("/");
+    res.status(200).end();
+});
 
 let server = app.listen(EXPRESS_PORT, EXPRESS_HOST, () => {
     console.log(`App listening on ${EXPRESS_HOST}:${EXPRESS_PORT}`);
