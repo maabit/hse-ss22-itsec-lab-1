@@ -1,38 +1,40 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <link href="css/style.css" rel="stylesheet" type="text/css">
     <title>simpleblog</title>
 </head>
 <body>
-<div class="user-registration">
+<nav class="navbar">
     <form action="/user/new" method="POST">
         <input name="username" type="text" placeholder="username">
         <input name="password" type="password" placeholder="password">
         <button type="submit">Add</button>
     </form>
-</div>
-<% for(let i = 0; i < users.length; i++){ %>
-    <div class="user">
-        <% let user = users[i]; %>
+</nav>
+<div class="user-container">
+    <% for(let i = 0; i < users.length; i++){ %>
+        <div class="user">
+            <% let user = users[i]; %>
 
-        <span class="administration-id">
+            <span class="administration-id">
             ID <%= user.userID; %>
         </span>
 
-        <span class="administration-username">
-            Username <%= user.username; %>
+            <span class="administration-username">
+            Username: <%= user.username; %>
         </span>
 
-        <span class="administation-password">
-            Password <%= user.password; %>
+            <span class="administation-password">
+            Password: <%= user.password; %>
         </span>
-
-        <form action="/user/delete" method="DELETE">
-            <input name="userID" type="hidden" value="<%= `${user.userID}` %>">
-            <button type="submit">DELETE</button>
-        </form>
-    </div>
-<% } %>
+            <form action="/user/delete" method="DELETE">
+                <input name="userID" type="hidden" value="<%= `${user.userID}` %>">
+                <button type="submit">DELETE</button>
+            </form>
+        </div>
+    <% } %>
+</div>
 
 </body>
 </html>
