@@ -11,11 +11,11 @@ INSERT INTO itseclab.post(content, post_userID)
 VALUES ('Bet you wont find the super hidden administration Page.', (SELECT userID FROM user WHERE username LIKE 'admin'));
 
 INSERT INTO itseclab.post(content, post_userID)
-VALUES ('This Blog is so cool!', (SELECT userID FROM user WHERE username LIKE 'mattias'));
+VALUES ('This Blog is so cool!', (SELECT userID FROM user WHERE username LIKE 'Mattias Abramovic'));
 
 INSERT INTO itseclab.post(content, post_userID)
 VALUES ('The Admin does not use a secure password. ;)',
-        (SELECT userID FROM user WHERE username LIKE 'nico'));
+        (SELECT userID FROM user WHERE username LIKE 'Nico Linder'));
 
 INSERT INTO itseclab.comment(content, comment_userID, comment_postID)
 VALUES ('Bet!',

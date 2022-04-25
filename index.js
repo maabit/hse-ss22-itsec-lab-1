@@ -22,6 +22,7 @@ const MYSQL_DATABSE = process.env.MYSQL_DATABASE;
 let app = express();
 app.set("view engine", "ejs");
 app.set("views", path.resolve(__dirname, "views"));
+app.use(express.static(path.resolve(__dirname, "public")));
 app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(cookieParser());
@@ -112,14 +113,14 @@ app.get("/", async (req, res) => {
         }
     }
     await createPostsWithComments().then((postsWithComments) => {
-        res.render("pages/index", {posts: postsWithComments, username: username});
+        res.render("simpleblog", {posts: postsWithComments, username: username});
         res.status(200).end();
     });
 });
 
 app.get("/administration", async (req, res) => {
     await getUsers().then((users) => {
-        res.render("pages/administration", {users: users});
+        res.render("administration", {users: users});
         res.status(200).end();
     });
 });
