@@ -6,6 +6,7 @@ import path from "path";
 import mysql from "mysql";
 import {v4} from "uuid";
 import cookieParser from "cookie-parser";
+import fetch from "node-fetch";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -31,11 +32,10 @@ let connection = mysql.createPool({
     host: MYSQL_HOST, port: MYSQL_PORT, user: MYSQL_USER, password: MYSQL_PASSWORD, database: MYSQL_DATABSE
 });
 
-
 async function getUsers() {
     return new Promise((resolve, reject) => {
         let userArray = [];
-        connection.query("SELECT * FROM itseclab.user", (err, rows, fields) => {
+        connection.query("SELECT * FROM itseclab.user", (err, rows) => {
             if (err) return reject(err);
             rows.forEach((element) => {
                 let user = element;
@@ -48,7 +48,7 @@ async function getUsers() {
 
 async function getPasswordByUsername(username) {
     return new Promise((resolve, reject) => {
-        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =?", [username], (err, rows, fields) => {
+        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =?", [username], (err, rows) => {
             if (err) return reject(err);
             let password;
             if (rows[0] != undefined) {
@@ -62,7 +62,7 @@ async function getPasswordByUsername(username) {
 
 async function getPosts() {
     return new Promise((resolve, reject) => {
-        connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", (err, rows, fields) => {
+        connection.query("SELECT p.postID, p.content, p.post_userID, u.username FROM itseclab.post AS p JOIN itseclab.user AS u ON p.post_userID=u.userID; ", (err, rows) => {
             let postArray = [];
             if (err) return reject(err);
             rows.forEach((element) => {
@@ -77,7 +77,7 @@ async function getPosts() {
 async function getCommentsByPostId(postId) {
     return new Promise((resolve, reject) => {
         let commentsArray = [];
-        connection.query("SELECT c.commentID, c.comment_userID, c.comment_postID, c.content, u.username FROM itseclab.comment AS c JOIN itseclab.user AS u ON c.comment_userID=u.userID WHERE c.comment_postID=?;", [postId], (err, rows, fields) => {
+        connection.query("SELECT c.commentID, c.comment_userID, c.comment_postID, c.content, u.username FROM itseclab.comment AS c JOIN itseclab.user AS u ON c.comment_userID=u.userID WHERE c.comment_postID=?;", [postId], (err, rows) => {
             if (err) return reject(err);
             rows.forEach((element) => {
                 let comment = JSON.parse(JSON.stringify(element));
@@ -130,103 +130,102 @@ app.post("/user/new", (req, res) => {
     const username = req.body.username;
     const password = req.body.password;
 
-    connection.query("INSERT INTO itseclab.user (username, password) VALUES (?, ?) " + "ON DUPLICATE KEY UPDATE password=" + "'" + password + "'", [username, password], (err, rows, fields) => {
+    connection.query("INSERT INTO itseclab.user (username, password) VALUES (?, ?) " + "ON DUPLICATE KEY UPDATE password=" + "'" + password + "'", [username, password], (err) => {
         if (err) {
             res.redirect("/administration");
             throw err;
         }
 
+        res.status(200);
         res.redirect("/administration");
-        res.status(200).end();
     });
 });
 
 app.get("/user/delete", (req, res) => {
     const userId = req.query.userID;
-    connection.query("DELETE FROM itseclab.user WHERE userID=" + userId, (err, rows, fields) => {
+    connection.query("DELETE FROM itseclab.user WHERE userID=" + userId, (err) => {
         if (err) {
             res.redirect("/administration");
             throw err;
         }
+        res.status(200);
         res.redirect("/administration");
-        res.status(200).end();
     });
 });
 
 app.post("/post/new", (req, res) => {
 
     if (!req.cookies) {
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     const sessionToken = req.cookies["session_token"];
     if (!sessionToken) {
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     let userSession = sessions[sessionToken];
     if (!userSession) {
-        // If the session token is not present in session map, return an unauthorized error
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     if (userSession.isExpired()) {
         delete sessions[sessionToken];
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     const content = req.body.content;
     const username = userSession.username;
-    connection.query("INSERT INTO itseclab.post (content, post_userID)\n VALUES (?, (SELECT userID FROM user WHERE username LIKE ?));", [content, username], (err, rows, fields) => {
+    connection.query("INSERT INTO itseclab.post (content, post_userID)\n VALUES (?, (SELECT userID FROM user WHERE username LIKE ?));", [content, username], (err) => {
         if (err) throw err;
+        res.status(200);
         res.redirect("/");
-        res.status(200).end();
     });
 });
 
 app.post("/comment/new", (req, res) => {
     if (!req.cookies) {
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     const sessionToken = req.cookies["session_token"];
     if (!sessionToken) {
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     let userSession = sessions[sessionToken];
     if (!userSession) {
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     if (userSession.isExpired()) {
         delete sessions[sessionToken];
+        res.status(401);
         res.redirect("/");
-        res.status(401).end();
         return;
     }
 
     const comment_postID = req.body.comment_postID;
     const content = req.body.content;
     const username = userSession.username;
-    connection.query("INSERT INTO itseclab.comment(content, comment_userID, comment_postID) VALUES (?, (SELECT userID from user WHERE username = ?), ?);", [content, username, comment_postID], (err, rows, fields) => {
+    connection.query("INSERT INTO itseclab.comment(content, comment_userID, comment_postID) VALUES (?, (SELECT userID from user WHERE username = ?), ?);", [content, username, comment_postID], (err) => {
         if (err) throw err;
+        res.status(200);
         res.redirect("/");
-        res.status(200).end();
     });
 });
 
@@ -248,18 +247,18 @@ app.post("/login", (req, res) => {
     const password = req.body.password;
 
     if (!username) {
-        // If the username isn't present, return an HTTP unauthorized code
-        res.status(401).end();
+        res.status(401);
+        res.redirect("/");
         return;
     }
 
     getPasswordByUsername(username).then((expectedPassword) => {
-        // let expectedPassword = password;
         if (!expectedPassword || expectedPassword !== password) {
             res.redirect("/");
             res.status(401).end();
             return;
         }
+
         const sessionToken = v4();
         const now = new Date();
         const expiresAt = new Date(+now + (60 * 60 * 24 * 7) * 1000);
@@ -279,8 +278,8 @@ app.post("/logout", (req, res) => {
             delete sessions[sessionToken];
         }
     }
+    res.status(200);
     res.redirect("/");
-    res.status(200).end();
 });
 
 let server = app.listen(EXPRESS_PORT, EXPRESS_HOST, () => {
