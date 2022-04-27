@@ -18,7 +18,7 @@ const MYSQL_HOST = process.env.MYSQL_HOST;
 const MYSQL_PORT = process.env.MYSQL_PORT;
 const MYSQL_USER = process.env.MYSQL_USER;
 const MYSQL_PASSWORD = process.env.MYSQL_PASSWORD;
-const MYSQL_DATABSE = process.env.MYSQL_DATABASE;
+const MYSQL_DATABASE = process.env.MYSQL_DATABASE;
 
 let app = express();
 app.set("view engine", "ejs");
@@ -29,7 +29,7 @@ app.use(bodyParser.urlencoded({extended: false}));
 app.use(cookieParser());
 
 let connection = mysql.createPool({
-    host: MYSQL_HOST, port: MYSQL_PORT, user: MYSQL_USER, password: MYSQL_PASSWORD, database: MYSQL_DATABSE
+    host: MYSQL_HOST, port: MYSQL_PORT, user: MYSQL_USER, password: MYSQL_PASSWORD, database: MYSQL_DATABASE
 });
 
 async function getUsers() {
@@ -46,15 +46,15 @@ async function getUsers() {
     });
 }
 
-async function getPasswordByUsername(username) {
+async function getUsername(username, password) {
     return new Promise((resolve, reject) => {
-        connection.query("SELECT u.password FROM itseclab.user AS u WHERE u.username =?", [username], (err, rows) => {
+        connection.query("SELECT u.username FROM itseclab.user AS u WHERE u.username =" + "'" + username + "'" + "AND password=" + "'" + password + "'", (err, rows) => {
             if (err) return reject(err);
-            let password;
+            let username;
             if (rows[0] != undefined) {
-                password = JSON.parse(JSON.stringify(rows[0])).password;
+                username = JSON.parse(JSON.stringify(rows[0])).username;
             }
-            resolve(password);
+            resolve(username);
         });
     });
 }
@@ -252,8 +252,8 @@ app.post("/login", (req, res) => {
         return;
     }
 
-    getPasswordByUsername(username).then((expectedPassword) => {
-        if (!expectedPassword || expectedPassword !== password) {
+    getUsername(username, password).then((expectedUsername)=>{
+        if (!expectedUsername || expectedUsername !== username) {
             res.redirect("/");
             res.status(401).end();
             return;
@@ -267,7 +267,7 @@ app.post("/login", (req, res) => {
         res.cookie("session_token", sessionToken, {expires: expiresAt});
         res.redirect("/");
         res.status(200).end();
-    });
+    })
 });
 
 app.post("/logout", (req, res) => {

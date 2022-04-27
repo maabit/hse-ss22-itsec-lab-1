@@ -44,13 +44,14 @@
             <% for (let i = 0; i < comments.length; i++) { %>
                 <% let comment = comments[i] %>
                 <div class="comment-content">
-                <span>
-                    <%= comment.username %>:
-                </span>
-                <span>
-                    <%- comment.content; %>
-                </span>
+                    <span>
+                        <%= comment.username %>:
+                    </span>
+                    <span>
+                        <%- comment.content; %>
+                    </span>
                 </div>
+                <!--Mattias Abramovic, Nico Linder-->
             <% } %>
             <div class="comment-form">
                 <form action="/comment/new" method="POST">
