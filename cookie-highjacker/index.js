@@ -1,3 +1,4 @@
+
 import express from "express";
 import cors from "cors";
 
@@ -15,5 +16,6 @@ app.post("/", (req, res) => {
 });
 
 app.listen(HIGHJACKER_PORT, () => {
+    console.log("By Mattias Abramovic, Nico Linder");
     console.log(`The Cookie Highjacker runs at http://localhost:${HIGHJACKER_PORT}`);
 });

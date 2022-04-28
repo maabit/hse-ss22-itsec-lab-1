@@ -5,6 +5,9 @@
   "scripts": {
     "start": "node index.js"
   },
+  "author": {
+    "name": "Mattias Abramovic, Nico Linder"
+  },
   "dependencies": {
     "cors": "2.8.5",
     "express": "4.17.3"

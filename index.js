@@ -1,3 +1,4 @@
+//Author: Mattias Abramovic, Nico Linder
 import express from "express";
 import bodyParser from "body-parser";
 import {fileURLToPath} from "url";
